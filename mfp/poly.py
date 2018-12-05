@@ -1,3 +1,8 @@
+import numpy as np
+
+import mfp.util as util
+
+
 class Polynomial:
     """
     Definition 2.1: a single-variable polynomial with real coefficients is a
@@ -12,14 +17,16 @@ class Polynomial:
 
     __slots__ = ["_coefficients"]
 
-    def __init__(self, coefficients):
+    def __init__(self, coefficients, nonzero=False):
         """
         :param coefficients: a list of real values that are the coefficients
                of the polynomial.
         """
-        self._coefficients = coefficients[:]
-        assert len(coefficients) > 0
-        assert coefficients[-1] != 0
+        self._coefficients = util.trim(coefficients[:], 0)
+        if len(self._coefficients) > 0:
+            assert self._coefficients[-1] != 0
+        if nonzero:
+            assert len(self._coefficients) != 0
 
     def __call__(self, *args, **kwargs):
         """
@@ -56,7 +63,7 @@ class Polynomial:
         return len(self)
 
     def __repr__(self):
-        return 'Polynomial of degree {}'.format(self.degree())
+        return "Polynomial of degree {}".format(self.degree())
 
     def __str__(self):
         """A string representation of the polynomial."""
@@ -101,13 +108,57 @@ class Polynomial:
             )
         )
 
+    def __mul__(self, other):
+        coeffs = [0] * (len(self) + len(other) - 1)
+        for i, a in enumerate(self._coefficients):
+            for j, b in enumerate(other._coefficients):
+                coeffs[i + j] += a * b
+
+        coeffs = util.trim(coeffs)
+        return Polynomial(coeffs)
+
+    def __eq__(self, other):
+        if len(self._coefficients) != len(other._coefficients):
+            return False
+        return all(
+            [
+                np.isclose(self._coefficients[i], other._coefficients[i])
+                for i in range(len(self._coefficients))
+            ]
+        )
+
+
+ZERO = Polynomial([])
+
 
 def _merge_coefficients(a1, a2, op):
     max_length = max(len(a1), len(a2))
     a1 += [0] * (max_length - len(a1))
-    a2 += [0] * (max_length - len(a1))
+    a2 += [0] * (max_length - len(a2))
 
     return [op(a1[i], a2[i]) for i in range(max_length)]
 
-def _single_term(terms, xi):
-    return None
+
+def _single_term(points, i):
+    p = Polynomial([1])
+    xi, yi = points[i]
+
+    for j, point in enumerate(points):
+        if j == i:
+            continue
+        xj = point[0]
+        p *= Polynomial([-xj / (xi - xj), 1.0 / (xi - xj)])
+
+    return p * Polynomial([yi])
+
+
+def interpolate(points):
+    if len(points) == 0:
+        raise ValueError("interpolation requires at least one point")
+
+    xs = [point[0] for point in points]
+    if len(set(xs)) < len(xs):
+        raise ValueError("interpolation requires distinct x values")
+
+    terms = [_single_term(points, i) for i in range(len(points))]
+    return sum(terms, ZERO)

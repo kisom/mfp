@@ -24,3 +24,14 @@ def test_sub_polys():
     assert h(0) == 1
     assert h(1) == 2
     assert h(5) == 6
+
+
+def test_interpolate():
+    interpolations = [[(1, 1)], [(1, 1), (2, 0)], [(1, 1), (2, 4), (7, 9)]]
+    expected = [
+        poly.Polynomial([1.0]),
+        poly.Polynomial([2.0, -1.0]),
+        poly.Polynomial([-2.6666666, 3.999999, -0.333333]),
+    ]
+    polys = [poly.interpolate(points) for points in interpolations]
+    assert all([polys[i] == expected[i] for i in range(len(polys))])
